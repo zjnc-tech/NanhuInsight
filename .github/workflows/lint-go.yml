@@ -1,0 +1,62 @@
+name: Go Related Checks
+
+# Any change in triggers needs to be reflected in the concurrency group.
+on:
+  pull_request: {}
+  push:
+    branches:
+      - main
+      - ft/main/**
+  # Add this workflow to be triggered by merge queue events
+  merge_group:
+
+permissions: read-all
+
+# 用于并发管理
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.after || github.event.merge_group && github.run_id }} #将工作流分组
+  cancel-in-progress: ${{ !github.event.merge_group }} #如果不是merge_group则会取消
+
+jobs:
+  go-mod:
+    name: Check Go Modules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+        with:
+          # renovate: datasource=golang-version depName=go
+          go-version: 1.22.0
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+      - name: Check module vendoring
+        run: |
+          go mod tidy
+  #go mod vendor
+  #test -z "$(git status --porcelain)" || (echo "please run 'go mod tidy && go mod vendor', and submit your changes"; exit 1)
+  golangci:
+    name: Lint Source Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+        with:
+          # renovate: datasource=golang-version depName=go
+          go-version: 1.22.0
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@3cfe3a4abbb849e10058ce4af15d205b6da42804 # v4.0.0
+        with:
+          # renovate: datasource=docker depName=golangci/golangci-lint
+          version: v1.56.2
+          skip-cache: true
+          args: "--out-${NO_FUTURE}format colored-line-number --verbose" #--modules-download-mode=vendor
+          # working-directory: go
+  # precheck:
+  # generate-api:
+  # generate-k8s-api:
