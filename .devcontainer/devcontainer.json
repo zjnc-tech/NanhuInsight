@@ -1,0 +1,53 @@
+{
+    "name": "Collector Agent Dev Container",
+    "image": "cr.registry.res.cloud.zhejianglab.com/infrahi-installer/topology-agent-dev:v1",
+    // "dockerFile": "Dockerfile",
+    "mounts": [
+      "source=${localEnv:HOME},target=/home,type=bind,consistency=cached",
+      "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached",
+      "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached",
+      "source=/dev/shm,target=/dev/shm,type=bind,consistency=cached",
+      "source=/usr/sbin/lldptool,target=/usr/sbin/lldptool,type=bind,consistency=cached",
+      "source=/usr/share/man/man8/lldptool.8.gz,target=/usr/share/man/man8/lldptool.8.gz,type=bind,consistency=cached",
+      "source=/usr/sbin/lldpad,target=/usr/sbin/lldpad,type=bind,consistency=cached",
+      "source=/usr/share/man/man8/lldpad.8.gz,target=/usr/share/man/man8/lldpad.8.gz,type=bind,consistency=cached",
+      "source=/usr/lib/x86_64-linux-gnu,target=/usr/lib/x86_64-linux-gnu,type=bind,consistency=cached",
+      "source=/usr/sbin/lldpcli,target=/usr/sbin/lldpcli,type=bind,consistency=cached",
+      "source=/usr/share/man/man8/lldpcli.8.gz,target=/usr/share/man/man8/lldpcli.8.gz,type=bind,consistency=cached",
+      "source=/usr/sbin/lldpd,target=/usr/sbin/lldpd,type=bind,consistency=cached",
+      "source=/etc/lldpd.d,target=/etc/lldpd.d,type=bind,consistency=cached",
+      "source=/usr/share/man/man8/lldpd.8.gz,target=/usr/share/man/man8/lldpd.8.gz,type=bind,consistency=cached",
+      "source=/var/run/lldpd,target=/var/run/lldpd,type=bind,consistency=cached",
+      "source=/var/run/lldpd.socket,target=/var/run/lldpd.socket,type=bind,consistency=cached",
+      "source=/,target=/host/root,type=bind,consistency=cached"
+    ],
+    "runArgs": [
+      "--add-host=infra-gitlab.zhejianglab.com:10.200.93.60",
+      "--add-host=pre-isg.fed.clickhouse.zhejianglab.org:10.107.204.26",
+      // "--cap-add=SYS_ADMIN",
+      // "--cap-add=SYS_RESOURCE",
+      // "--cap-add=SYS_PTRACE",
+      // "--cap-add=NET_ADMIN",
+      // "--cap-add=NET_RAW",
+      // "--cap-add=IPC_LOCK",
+      // "--cap-add=SYSLOG",
+      "--network=host",
+      // "--pid=host",
+      // "--ipc=host",
+      "--privileged",
+      "--dns=8.8.8.8",
+      "--gpus=all"
+    ],
+    "customizations": {
+      "vscode": {
+        "settings": {
+          "terminal.integrated.shell.linux": "/bin/bash"
+        },
+        "extensions": [
+          "usernamehw.errorlens",
+          "golang.go",
+          "Alibaba-Cloud.tongyi-lingma"
+        ]
+      }
+    }
+}

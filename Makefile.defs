@@ -1,0 +1,185 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Authors of XenoView
+
+#@ export CODE_VERSION_DIR=xxx 覆盖默认version.go位置
+#@ export NOSTRIP=1 开启编译符号表和调试信息，用于debug
+#@ export NOOPT=1 禁用优化，禁用函数内联，用于debug
+#@ export RACE=1 开启数据竞争检测，用于debug，开启RACE必须使用GO_BUILD_WITH_CGO
+#@ export GO_MOD_VENDOR=1 使用vendor模式
+
+#@ $(SHELL)@default shell
+SHELL := /usr/bin/env bash
+.SHELLFLAGS := -eu -o pipefail -c
+
+#@ $(ROOT_DIR)
+ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+#@ $(RELATIVE_DIR)@相对根文件的路径
+RELATIVE_DIR := $(shell echo $(realpath .) | sed "s;$(ROOT_DIR)[/]*;;")
+
+empty :=
+#@ $(space)
+space := $(empty) $(empty)
+#@ $(comma)
+comma := ,
+#@ $(call join-with-comma, text1, text2)@按逗号拼接字符串
+join-with-comma = $(subst $(space),$(comma),$(strip $1))
+#@ $(newline)@换行符
+define newline
+
+endef
+
+#@ $(COLOR_RESET)@重置终端文字颜色
+COLOR_RESET := \033[0m
+#@ $(COLOR_RED)
+COLOR_RED := \033[91m
+#@ $(COLOR_GREEN)
+COLOR_GREEN := \033[92m
+#@ $(COLOR_YELLOW)
+COLOR_YELLOW := \033[93m
+#@ $(COLOR_LIGHT_BLUE)
+COLOR_LIGHT_BLUE := \033[36m
+#@ $(COLOR_BLUE)
+COLOR_BLUE := \033[94m
+#@ $(COLOR_WHITE)
+COLOR_WHITE := \033[97m
+
+#@ $(BOLD_COLOR_BOLD)
+BOLD_COLOR_BOLD := \033[1m
+#@ $(BOLD_COLOR_RED)
+BOLD_COLOR_RED := \033[1;91m
+#@ $(BOLD_COLOR_GREEN)
+BOLD_COLOR_GREEN := \033[1;92m
+#@ $(BOLD_COLOR_YELLOW)
+BOLD_COLOR_YELLOW := \033[1;93m
+#@ $(BOLD_COLOR_BLUE)
+BOLD_COLOR_BLUE := \033[1;94m
+#@ $(BOLD_COLOR_WHITE)
+BOLD_COLOR_WHITE := \033[1;97m
+
+#@ $(QUIET)@不打印命令本身
+QUIET = @
+#@ $(INFO) xxx @info级别打印
+INFO := $(QUIET)printf "$(BOLD_COLOR_BOLD)%s$(COLOR_RESET)\n" "$@"
+#@ $(WARN) xxx @warn级别打印
+WARN := $(QUIET)printf "$(BOLD_COLOR_YELLOW)%s$(COLOR_RESET)\n" "$@"
+#@ $(ERROR) xxx @warn级别打印
+ERROR := $(QUIET)printf "$(BOLD_COLOR_RED)%s$(COLOR_RESET)\n" "$@"
+
+#@ $(VERSION)@版本号
+VERSION = $(shell cat $(ROOT_DIR)/VERSION)
+#@ $(VERSION_MAJOR)@主版本号
+VERSION_MAJOR = $(shell cat $(ROOT_DIR)/VERSION | cut -d. -f1)
+#@ $(VERSION_MINOR)@次版本号
+VERSION_MINOR = $(shell cat $(ROOT_DIR)/VERSION | cut -d. -f2)
+#@ $(VERSION_PATCH)@修订号
+VERSION_PATCH = $(shell cat $(ROOT_DIR)/VERSION | cut -d. -f3 | cut -d - -f1)
+#@ $(VERSION_IDENTIFIER)@版本说明[dev/release]
+VERSION_IDENTIFIER = $(shell cat $(ROOT_DIR)/VERSION | cut -d - -f2)
+#@ $(GIT_VERSION)@git版本号
+GIT_VERSION = $(shell git rev-parse --short HEAD)
+#@ $(FULL_BUILD_VERSION)@构建版本号
+FULL_BUILD_VERSION = $(VERSION) $(GIT_VERSION)
+
+#@ $(INSTALL)@安装工具
+INSTALL = install
+#@ $(MAKE)@make工具
+MAKE = make
+
+#@ $(DEPLOY_NAMESPACE)@发布的命名空间
+DEPLOY_NAMESPACE := infrahi-system
+
+#@ $(KUBECTL)@kubectl
+export KUBECTL ?= kubectl
+# use gsed if available, otherwise use sed.
+# gsed is needed for MacOS to make in-place replacement work correctly.
+#@ $(SED)@sed工具
+SED ?= $(if $(shell command -v gsed),gsed,sed)
+
+#@ $(CONTAINER_ENGINE)@容器工具docker
+CONTAINER_ENGINE?=docker
+DOCKER_FLAGS ?=
+DOCKER_BUILD_FLAGS ?=
+#@ $(DOCKER_IMAGE_TAG)@docker镜像版本
+DOCKER_IMAGE_TAG ?= latest
+#@ $(DOCKER_REGISTRY)@镜像私仓
+DOCKER_REGISTRY := cr.registry.res.cloud.zhejianglab.com
+#@ $(DOCKER_NAMESPACE)@镜像仓库命名空间
+DOCKER_NAMESPACE := infrahi-installer
+
+#@ $(TERM_WIDTH)@终端宽度
+TERM_WIDTH := $(shell tput cols)
+
+## swagger相关 ##
+#@ $(SWAGGER_VERSION)
+SWAGGER_VERSION := v0.30.3
+SWAGGER := $(CONTAINER_ENGINE) run -u $(shell id -u):$(shell id -g) --rm -v $(ROOT_DIR):$(ROOT_DIR) -w $(ROOT_DIR) --entrypoint swagger quay.io/goswagger/swagger:$(SWAGGER_VERSION)
+#go install github.com/swaggo/swag/cmd/swag@latest
+
+# 生成等宽的符号行
+define print_line
+	@echo $(shell printf '$(1)%.0s' $$(seq 1 $(TERM_WIDTH)))
+endef
+
+# 生成等宽的符号行，$info方式
+define print_line_info
+	$(info $(shell printf '$(1)%.0s' $$(seq 1 $(TERM_WIDTH))))
+endef
+
+define print_help_line
+  @printf "  $(COLOR_LIGHT_BLUE)%-29s$(COLOR_RESET) %s.\n" $(1) $(2)
+endef
+
+# 扫描所有的Makefile文件，并提取一些目标的注释生成help并打印
+# 分类的格式: ##@
+# 目标的格式: ##
+# 使用时可以增加一个target，下面是一个示例
+# .PHONY: help
+# help: FORCE ##print help
+#	$(call print_help_from_makefile)
+# .PHONY: FORCE
+# FORCE: 
+# 	@true
+ALL_MAKEFILES := $(shell find . -name 'Makefile')
+define print_help_from_makefile
+  @awk 'BEGIN {FS = ":.*##"; printf "\n$(BOLD_COLOR_BOLD)Usage:$(COLOR_RESET)\n  make $(COLOR_LIGHT_BLUE)<target>$(COLOR_RESET)\n"} /^[a-zA-Z0-9][a-zA-Z0-9 _-]*:.*?##/ { split($$1, targets, " "); for (i in targets) { printf "  $(COLOR_LIGHT_BLUE)%-30s$(COLOR_RESET) %s\n", targets[i], $$2 } } /^##@/ { printf "\n$(BOLD_COLOR_BOLD)%s$(COLOR_RESET)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+endef
+
+# 扫描所有的Makefile文件，并提取这样的注释作为参数显示 `#@一些说明`
+# 使用时可以增加一个target，下面是一个示例
+# .PHONY: params
+# params: FORCE
+# 	$(call print_params_from_makefile)
+# .PHONY: FORCE
+# FORCE: 
+# 	@true
+define print_params_from_makefile
+    @awk 'FNR==1 {if (NR>1) print ""; print "$(BOLD_COLOR_BOLD)" FILENAME ": $(COLOR_RESET)"} /^#@/ {gsub(/^#@ */, ""); split($$0, parts, "@"); printf "$(space)$(space)$(COLOR_LIGHT_BLUE)%-30s $(COLOR_RESET)%s\n", parts[1], parts[2]}' $(MAKEFILE_LIST)
+endef
+
+.PHONY: FORCE
+FORCE: 
+	@true
+
+#@ $(USERID)@用户ID
+USERID := $(shell id -u)
+#@ $(GROUPID)@用户组
+GROUPID := $(shell id -g)
+
+incress-major-version: ##修改VERSION文件，将major version增加1
+	@echo "$$(($(VERSION_MAJOR)+1)).$(VERSION_MINOR).$(VERSION_PATCH)-$(VERSION_IDENTIFIER)" > $(ROOT_DIR)/VERSION
+
+incress-minor-version: ##修改VERSION文件，将minor version增加1
+	@echo "$(VERSION_MAJOR).$$(($(VERSION_MINOR)+1)).$(VERSION_PATCH)-$(VERSION_IDENTIFIER)" > $(ROOT_DIR)/VERSION
+
+incress-patch-version: ##修改VERSION文件，将patch version增加1
+	@echo "$(VERSION_MAJOR).$(VERSION_MINOR).$$(($(VERSION_PATCH) + 1))-$(VERSION_IDENTIFIER)" > $(ROOT_DIR)/VERSION
+
+clear-patch-version: ##修改VERSION文件，将patch version置为0
+	@echo "$(VERSION_MAJOR).$(VERSION_MINOR).0-$(VERSION_IDENTIFIER)" > $(ROOT_DIR)/VERSION
+
+new-sprint: incress-minor-version clear-patch-version ##开始新的sprint迭代，将会修改版本号
+	$(INFO)"Sprint started with Version [$(shell cat $(ROOT_DIR)/VERSION)]"
+
+GIT_VERSION: FORCE ##update GIT_VERSION
+	@if [ "$(GIT_VERSION)" != "`cat 2>/dev/null GIT_VERSION`" ] ; then echo "$(GIT_VERSION)" >GIT_VERSION; fi
+	$(INFO)"Succeed write $(GIT_VERSION) to GIT_VERSION"
