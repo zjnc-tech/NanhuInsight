@@ -1,0 +1,52 @@
+name: "🐞 Bug Report"
+description: "报告软件中的错误或异常行为"
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **请仔细填写以下信息**  
+        提供完整细节有助于快速解决问题。
+        
+  - type: textarea
+    id: description
+    attributes:
+      label: "问题描述"
+      description: "清晰描述 Bug 的表现"
+      placeholder: |
+        实际行为：点击登录按钮后页面崩溃...
+        预期行为：点击登录按钮后正常登录...
+
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: "软件版本"
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "严重程度"
+      options:
+        - "低（不影响使用）"
+        - "中（部分功能失效）"
+        - "高（系统崩溃）"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "重现步骤"
+      description: "请提供可重现的步骤，以便更容易找到根本原因"
+      placeholder: |
+        1.helm安装
+        2....
+    validations:
+      required: true

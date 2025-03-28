@@ -1,0 +1,65 @@
+---
+name: "✨ Feature Request"
+description: "提交新功能或改进建议"
+title: "[FEATURE] "
+labels: ["enhancement"]
+assignees:
+  - "product-manager"
+
+body:
+  # 1. 功能概述
+  - type: markdown
+    attributes:
+      value: "## 📌 功能概述"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "功能描述"
+      description: "用简洁的语言说明该功能的用途和价值"
+      placeholder: |
+        例如：增加深色模式支持，减少夜间使用时的眼睛疲劳（可附上需求文档链接）
+    validations:
+      required: true
+
+  # 2. 优先级评估
+  - type: markdown
+    attributes:
+      value: "## 🎯 优先级"
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "业务优先级"
+      options:
+        - "P0 (核心业务关键)"
+        - "P1 (提升核心体验)"
+        - "P2 (锦上添花)"
+    validations:
+      required: true
+
+  # 3. 技术考量
+  - type: markdown
+    attributes:
+      value: "## ⚙️ 技术实现"
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "实现方案建议"
+      description: "可选，如果你有技术实现思路请说明"
+      placeholder: |
+        可通过 prefers-color-scheme CSS 媒体查询实现...（可附上技术设计文档链接）
+
+
+  # 4. 可视化参考
+  - type: markdown
+    attributes:
+      value: "## 🎨 设计参考"
+
+  - type: input
+    id: design_reference
+    attributes:
+      label: "产品设计文档链接"
+      placeholder: "https://figma.com/file/..."
+---
