@@ -5,11 +5,11 @@
     <br>NanhuInsight
 </h1>
 
-<p align="center">NanhuInsight是一个专为大规模智算集群设计的智能故障控制与高效运维的开源项目。它提供从遥测信号采集、性能监控、故障告警、健康检查到智能故障分析与自动处置的一站式解决方案，帮助降低AI训练任务中的故障影响，提升集群运行稳定性与运维效率</p>
+<p align="center">NanhuInsight是一个专为<b>大规模智算集群</b>设计的<b>智能故障控制与高效运维</b>的开源项目。它提供从遥测信号采集、性能监控、故障告警、健康检查到智能故障分析与自动处置的一站式解决方案，帮助<b>降低AI训练任务中的故障影响</b>，提升集群运行稳定性与运维效率</p>
   
 <h3 align="center">
-  <a href="http://pre-isg.doc.zhejianglab.org/"><b>Documentation</b></a> &bull;
-  <a href="https://github.com/SigNoz/signoz/blob/main/README.en.md"><b>ReadMe in English</b></a> &bull;
+  <a href="http://pre-isg.doc.zhejianglab.org/"><b>文档</b></a> &bull;
+  <a href="https://github.com/SigNoz/signoz/blob/main/README.en.md"><b>English</b></a> &bull;
 </h3>
 
 ## 核心特性
