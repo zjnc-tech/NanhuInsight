@@ -1,21 +1,58 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright Authors of XenoView
+# Copyright Authors of NanhuInsight
+# Based on Cilium project (https://github.com/cilium/cilium)
+# Copyright Authors of Cilium
+# SPDX-License-Identifier: Apache-2.0
+
+#@ export INJECT_VERSION=1 向version.go中注入版本信息，需要配合CODE_VERSION_DIR一起使用
+#@ export ENV=debug 将会开启以下编译参数: NOSTRIP编译符号表和调试信息;NOOPT禁用优化，禁用函数内联;RACE数据竞争检测，开启RACE必须使用GO_BUILD_WITH_CGO
+#@ export GO_MOD_VENDOR=1 使用vendor模式
+
+_golang_empty :=
+_golang_space := $(empty) $(empty)
+_golang_comma := ,
+
+__GOLANG_COLOR_RESET := \033[0m
+__GOLANG_COLOR_RED := \033[91m
+__GOLANG_COLOR_GREEN := \033[92m
+__GOLANG_COLOR_YELLOW := \033[93m
+__GOLANG_COLOR_LIGHT_BLUE := \033[36m
+__GOLANG_COLOR_BLUE := \033[94m
+__GOLANG_COLOR_WHITE := \033[97m
+
+__GOLANG_BOLD_COLOR_BOLD := \033[1m
+__GOLANG_BOLD_COLOR_RED := \033[1;91m
+__GOLANG_BOLD_COLOR_GREEN := \033[1;92m
+__GOLANG_BOLD_COLOR_YELLOW := \033[1;93m
+__GOLANG_BOLD_COLOR_BLUE := \033[1;94m
+__GOLANG_BOLD_COLOR_WHITE := \033[1;97m
+
+__GOLANG_QUIET := $(if $(filter 1,$(V)),,@)
+
+__GOLANG_INFO := $(__GOLANG_QUIET)printf "$(shell date '+%Y-%m-%d %H:%M:%S') $(BOLD_COLOR_BOLD)[INFO]$(COLOR_RESET) %s\n"
+__GOLANG_WARN := $(__GOLANG_QUIET)printf "$(shell date '+%Y-%m-%d %H:%M:%S') $(BOLD_COLOR_YELLOW)[WARN]$(COLOR_RESET) %s\n"
+__GOLANG_ERROR := $(__GOLANG_QUIET)printf "$(shell date '+%Y-%m-%d %H:%M:%S') $(BOLD_COLOR_RED)[ERROR]$(COLOR_RESET) %s\n"
+__GOLANG_SUCCESS := $(__GOLANG_QUIET)printf "$(shell date '+%Y-%m-%d %H:%M:%S') $(BOLD_COLOR_GREEN)[SUCCESS]$(COLOR_RESET) %s\n" 
 
 #@ $(GO)@go二进制
 GO = go
 
 HAS_GO := $(shell command -v $(GO) 2> /dev/null)
 
-# 环境中必须有golang执行下面的语句
+# 环境中必须有golang才执行下面的语句
 ifdef HAS_GO 
 
-CUR_GO_VERSION := $(shell go version)
-#$(info Detected Golang: $(HAS_GO) ($(CUR_GO_VERSION)))
+#@ $(CUR_GO_VERSION)@本地的Go版本
+CUR_GO_VERSION := $(shell go version | awk '{print $$3}' | sed 's/go//')
 
-# Go版本确保最新
 #@ $(GO_VERSION)@期望的Go版本
 # renovate: datasource=golang-version depName=go
-GO_VERSION := 1.22.0
+GO_VERSION := 1.24.1
+
+# 检查Go版本
+ifneq ($(CUR_GO_VERSION),$(GO_VERSION))
+    $(error "golang版本$(CUR_GO_VERSION)与期望$(GO_VERSION)不一致，需要升级")
+endif
 
 #@ $(GOPATH)@GOPATH环境变量值
 GOPATH ?= $(shell $(GO) env GOPATH)
@@ -38,10 +75,8 @@ GOARCH ?= $(shell $(GO) env GOARCH)
 #@ $(GOOS)@GOOS环境变量值
 GOOS ?= $(shell $(GO) env GOOS)
 
-#@ $(call get_root_go_module)@获取go.mod中的包名
-define get_root_go_module
-    $(shell $(GO) list -m)
-endef
+#@ $(ROOT_GO_MODULE)@获取go.mod中的包名
+ROOT_GO_MODULE = $(shell $(GO) list)
 
 #@ $(GO_BUILD_FLAGS)@go build参数
 GO_BUILD_FLAGS =
@@ -65,9 +100,11 @@ TESTPKGS ?= ./...
 GO_CLEAN_FLAGS = 
 
 # 指定version.go的包路径和变量名，用于在go build时将FULL_BUILD_VERSION注入
+ifdef INJECT_VERSION
 CODE_VERSION_DIR ?= /pkg/util.Version
 
 GO_BUILD_LDFLAGS += -X "$(ROOT_GO_MODULE)$(CODE_VERSION_DIR)=$(FULL_BUILD_VERSION)"
+endif
 
 # 处理go test覆盖率报告的输出
 # 默认情况直接打印，如果安装了tparse则用tparse输出
@@ -77,6 +114,8 @@ GOTEST_FORMATTER ?= cat
 ifneq ($(shell command -v tparse),)
 	GOTEST_COVER_OPTS += -json
 	GOTEST_FORMATTER = tparse -progress
+else
+    $(warning "建议安装tparse以格式化输出go install github.com/mfridman/tparse@latest") 
 endif
 
 #@ $(GO_BUILD)@不带cgo的go build命令
@@ -97,8 +136,26 @@ endif
 #@ $(GO_BUILD_WITH_CGO)@带cgo的go build命令
 GO_BUILD_WITH_CGO = $(call ensure_go_flags) CGO_ENABLED=1 $(CGO_CC) $(GO) build
 
-GO_BUILD_FLAGS += -ldflags '$(GO_BUILD_LDFLAGS) $(EXTRA_GO_BUILD_LDFLAGS)' -tags '$(call join-with-comma,$(GO_TAGS_FLAGS))' $(EXTRA_GO_BUILD_FLAGS)
-GO_TEST_FLAGS += -tags=$(call join-with-comma,$(GO_TAGS_FLAGS))
+IS_DEBUG := $(if $(filter debug,$(ENV)),true,false)
+
+ifeq ($(IS_DEBUG),true)
+    GO_BUILD_FLAGS += -race #开启数据竞争检测
+    GO_TEST_FLAGS += -race
+    GO_BUILD_FLAGS += -gcflags="all=-N -l" #禁止优化和内联
+    GOTEST_COVER_OPTS += -covermode=atomic
+    GO_BUILD=$(GO_BUILD_WITH_CGO)
+else 
+    GOTEST_COVER_OPTS += -covermode=count
+    GO_BUILD_LDFLAGS += -s -w #移除调试信息
+endif
+
+ifdef GO_MOD_VENDOR
+    GO_BUILD_FLAGS += -mod=vendor
+    GO_CLEAN_FLAGS += -mod=vendor
+endif
+
+GO_BUILD_FLAGS += -ldflags '$(GO_BUILD_LDFLAGS) $(EXTRA_GO_BUILD_LDFLAGS)' -tags '$(subst $(_golang_space),$(_golang_comma),$(strip $(GO_TAGS_FLAGS)))' $(EXTRA_GO_BUILD_FLAGS)
+GO_TEST_FLAGS += -tags=$(subst $(_golang_space),$(_golang_comma),$(strip $(GO_TAGS_FLAGS)))
 GO_BUILD += $(GO_BUILD_FLAGS)
 GO_BUILD_WITH_CGO += $(GO_BUILD_FLAGS)
 
@@ -114,20 +171,6 @@ GO_VET = $(GO) vet
 #@ $(GO_LIST)@go list命令
 GO_LIST = $(GO) list
 
-#@ $(call ensure_go_flags)@用于根据环境变量刷新go flags 在调用所有go xxx之前必须先调用这个函数
-define ensure_go_flags
-    $(eval GO_BUILD_LDFLAGS += $(if $(NOSTRIP),,-s -w))
-    $(eval ROOT_GO_MODULE = $(shell $(GO) list -m))
-    $(eval GO_BUILD_FLAGS += $(if $(GO_MOD_VENDOR),-mod=vendor,))
-    $(eval GO_BUILD_FLAGS += $(if $(GO_MOD_VENDOR),-mod=vendor,))
-    $(eval GO_CLEAN_FLAGS += $(if $(GO_MOD_VENDOR),-mod=vendor,))
-
-    $(eval GO_BUILD_FLAGS += $(if $(RACE),-race,))
-    $(eval GO_TEST_FLAGS += $(if $(RACE),-race,))
-    $(eval GO_BUILD_FLAGS += $(if $(NOOPT),-gcflags="all=-N -l",))
-    $(eval GOTEST_COVER_OPTS += $(if $(RACE),-covermode=atomic,-covermode=count))
-endef
-
 #@ $(GOLANGCILINT_WANT_VERSION)@最新golangci-lint版本
 # renovate: datasource=docker depName=golangci/golangci-lint
 GOLANGCILINT_WANT_VERSION = v1.61.0
@@ -135,24 +178,21 @@ GOLANGCILINT_IMAGE_SHA = sha256:e47065d755ca0afeac9df866d1dabdc99f439653a43fe234
 #@ $(GOLANGCILINT_VERSION)@本地golangci-lint版本
 GOLANGCILINT_VERSION = $(shell golangci-lint version --format short 2>/dev/null)
 GOLANGCI_LINT_ARGS = --timeout=10m
+
 ##@ Golang
 .PHONY: golangci-lint
 golangci-lint: ##Run golangci-lint
 ifneq (,$(findstring $(GOLANGCILINT_WANT_VERSION:v%=%),$(GOLANGCILINT_VERSION)))
-	golangci-lint run $(GOLANGCI_LINT_ARGS)
+	$(__GOLANG_QUIET)golangci-lint run $(GOLANGCI_LINT_ARGS)
 else    
-	@echo "建议本地安装$(GOLANGCILINT_WANT_VERSION)版本的golangci-lint, 命令：(go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCILINT_WANT_VERSION)) 现在将使用docker运行" && $(CONTAINER_ENGINE) run --rm -v `pwd`:/app -w /app docker.io/golangci/golangci-lint:$(GOLANGCILINT_WANT_VERSION)@$(GOLANGCILINT_IMAGE_SHA) golangci-lint run $(GOLANGCI_LINT_ARGS)
+	$(__GOLANG_QUIET)echo "建议本地安装$(GOLANGCILINT_WANT_VERSION)版本的golangci-lint, 命令：(go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCILINT_WANT_VERSION)) 现在将使用docker运行" && $(CONTAINER_ENGINE) run --rm -v `pwd`:/app -w /app docker.io/golangci/golangci-lint:$(GOLANGCILINT_WANT_VERSION)@$(GOLANGCILINT_IMAGE_SHA) golangci-lint run $(GOLANGCI_LINT_ARGS)
 endif
 
 .PHONY: golangci-lint-fix
 golangci-lint-fix: ##Run golangci-lint to automatically fix warnings
-	$(QUIET)$(MAKE) golangci-lint GOLANGCI_LINT_ARGS+=" --fix"
+	$(__GOLANG_QUIET)make golangci-lint GOLANGCI_LINT_ARGS+=" --fix"
 endif
 
 godoc-run: ##运行godoc
-	@if command -v godoc > /dev/null; then echo "GoDoc地址: localhost:6060";godoc -http=":6060"; else echo "请先安装godoc: go install golang.org/x/tools/cmd/godoc@latest"; fi
-
-.PHONY: check-go
-check-go: ##检查go二进制是否存在
-	@which $(GO) || (echo -e "$(BOLD_COLOR_RED)Error: $(GO) not found. Please install Golang and try again.$(COLOR_RESET)" && exit 1)
+	$(__GOLANG_QUIET)if command -v godoc > /dev/null; then echo "GoDoc地址: localhost:6060";godoc -http=":6060"; else echo "请先安装godoc: go install golang.org/x/tools/cmd/godoc@latest"; fi
 

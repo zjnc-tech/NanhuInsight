@@ -1,14 +1,11 @@
-# SPDX-License-Identifier: Apache-2.0
-# Copyright Authors of NanhuInsight
+include ../Makefile.defs
+include ../Makefile.golang
 
-##@ Default
-all: 
-	$(QUIET)echo "TODO"
+build:
+	$(GO_BUILD) main.go
 
-ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-include $(ROOT_DIR)/Makefile.defs
-include $(ROOT_DIR)/Makefile.version
-include $(ROOT_DIR)/Makefile.golang
+test:
+	$(GO_TEST) | $(GOTEST_FORMATTER)
 
 ##@ Help
 .PHONY: print_all_variables
