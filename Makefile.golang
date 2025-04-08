@@ -51,7 +51,9 @@ GO_VERSION := 1.24.1
 
 # 检查Go版本
 ifneq ($(CUR_GO_VERSION),$(GO_VERSION))
-    $(error "golang版本$(CUR_GO_VERSION)与期望$(GO_VERSION)不一致，需要升级")
+    ifeq ($(shell expr $(CUR_GO_VERSION) \< $(GO_VERSION)),1)
+        $(error "golang版本$(CUR_GO_VERSION)低于期望版本$(GO_VERSION)，需要升级")
+    endif
 endif
 
 #@ $(GOPATH)@GOPATH环境变量值
