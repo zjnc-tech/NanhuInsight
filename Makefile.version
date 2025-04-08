@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright Authors of NanhuInsight
+
+__VERSION_COLOR_RESET := \033[0m
+__VERSION_COLOR_RED := \033[91m
+__VERSION_COLOR_GREEN := \033[92m
+__VERSION_COLOR_YELLOW := \033[93m
+__VERSION_COLOR_LIGHT_BLUE := \033[36m
+__VERSION_COLOR_BLUE := \033[94m
+__VERSION_COLOR_WHITE := \033[97m
+
+__VERSION_BOLD_COLOR_BOLD := \033[1m
+__VERSION_BOLD_COLOR_RED := \033[1;91m
+__VERSION_BOLD_COLOR_GREEN := \033[1;92m
+__VERSION_BOLD_COLOR_YELLOW := \033[1;93m
+__VERSION_BOLD_COLOR_BLUE := \033[1;94m
+__VERSION_BOLD_COLOR_WHITE := \033[1;97m
+
+__VERSION_QUIET := $(if $(filter 1,$(V)),,@)
+
+__VERSION_INFO := $(__VERSION_QUIET)printf "$(shell date '+%Y-%m-%d %H:%M:%S') $(BOLD_COLOR_BOLD)[INFO]$(COLOR_RESET) %s\n"
+__VERSION_WARN := $(__VERSION_QUIET)printf "$(shell date '+%Y-%m-%d %H:%M:%S') $(BOLD_COLOR_YELLOW)[WARN]$(COLOR_RESET) %s\n"
+__VERSION_ERROR := $(__VERSION_QUIET)printf "$(shell date '+%Y-%m-%d %H:%M:%S') $(BOLD_COLOR_RED)[ERROR]$(COLOR_RESET) %s\n"
+__VERSION_SUCCESS := $(__VERSION_QUIET)printf "$(shell date '+%Y-%m-%d %H:%M:%S') $(BOLD_COLOR_GREEN)[SUCCESS]$(COLOR_RESET) %s\n" 
+
+#@ $(VERSION)@版本号
+VERSION = $(shell cat $(ROOT_DIR)/VERSION)
+ifeq ($(VERSION),)
+  $(error "VERSION file not found or empty")
+endif
+#@ $(VERSION_MAJOR)@主版本号
+VERSION_MAJOR = $(shell cat $(ROOT_DIR)/VERSION | cut -d. -f1)
+#@ $(VERSION_MINOR)@次版本号
+VERSION_MINOR = $(shell cat $(ROOT_DIR)/VERSION | cut -d. -f2)
+#@ $(VERSION_PATCH)@修订号
+VERSION_PATCH = $(shell cat $(ROOT_DIR)/VERSION | cut -d. -f3 | cut -d - -f1)
+#@ $(VERSION_IDENTIFIER)@预发布版本说明[dev|alpha|beta|rc]
+VERSION_IDENTIFIER = $(shell cat $(ROOT_DIR)/VERSION | cut -d - -f2)
+#@ $(GIT_VERSION)@git版本号
+GIT_VERSION = $(shell git rev-parse --short HEAD)
+#@ $(FULL_BUILD_VERSION)@构建版本号
+FULL_BUILD_VERSION = $(VERSION) $(GIT_VERSION)
+
+##@ Version
+incress-major-version: ##修改VERSION文件，将major version增加1
+	$(__VERSION_QUIET)echo "$$(($(VERSION_MAJOR)+1)).$(VERSION_MINOR).$(VERSION_PATCH)-$(VERSION_IDENTIFIER)" > $(ROOT_DIR)/VERSION
+
+incress-minor-version: ##修改VERSION文件，将minor version增加1
+	$(__VERSION_QUIET)echo "$(VERSION_MAJOR).$$(($(VERSION_MINOR)+1)).$(VERSION_PATCH)-$(VERSION_IDENTIFIER)" > $(ROOT_DIR)/VERSION
+
+incress-patch-version: ##修改VERSION文件，将patch version增加1
+	$(__VERSION_QUIET)echo "$(VERSION_MAJOR).$(VERSION_MINOR).$$(($(VERSION_PATCH) + 1))-$(VERSION_IDENTIFIER)" > $(ROOT_DIR)/VERSION
+
+clear-patch-version: ##修改VERSION文件，将patch version置为0
+	$(__VERSION_QUIET)echo "$(VERSION_MAJOR).$(VERSION_MINOR).0-$(VERSION_IDENTIFIER)" > $(ROOT_DIR)/VERSION
+
+new-sprint: incress-minor-version clear-patch-version ##开始新的sprint迭代，将会修改版本号
+	$(__VERSION_INFO) "Sprint started with Version [$(shell cat $(ROOT_DIR)/VERSION)]"
+
+.PHONY: GIT_VERSION
+GIT_VERSION: ##update GIT_VERSION
+	$(__VERSION_QUIET)if [ "$(GIT_VERSION)" != "`cat 2>/dev/null GIT_VERSION`" ] ; then echo "$(GIT_VERSION)" >GIT_VERSION; fi
+	$(__VERSION_INFO) "Succeed write $(GIT_VERSION) to GIT_VERSION"

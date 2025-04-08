@@ -1,0 +1,15 @@
+syntax = "proto3";
+package v1;
+option go_package = "demo/v1";
+import "google/protobuf/timestamp.proto";
+
+service Demo {
+    rpc foo(fooReq) returns (fooRsp);
+}
+
+message fooReq{
+}
+
+message fooRsp{
+}
+ 
