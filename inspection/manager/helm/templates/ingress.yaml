@@ -1,0 +1,20 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.service.name }}
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: isg.fed.zhejianglab.org
+      http:
+        paths:
+          - backend:
+              service:
+                name: {{ .Values.service.name }}
+                port:
+                  name: http
+#                namespace: isg
+            path: /inspection
+            pathType: Prefix
+{{- end }}

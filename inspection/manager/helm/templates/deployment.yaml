@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.managerName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mychart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mychart.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mychart.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.serverImage.repository }}:{{ .Values.serverImage.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.serverImage.pullPolicy }}
+          env:
+            - name: RunMode
+              value: {{ .Values.runMode }}
+            - name: TZ
+              value: Asia/Shanghai
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: manager-dir
+              mountPath: /opt/inspection-manager
+            - name: inspection-dir
+              mountPath: /opt/inspection
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+        - name: manager-dir
+          hostPath:
+            path: {{ .Values.managerHostPath }}
+        - name: inspection-dir
+          hostPath:
+            path: {{ .Values.inspectionPath }}
+      {{- with .Values.serverNodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.serverAffinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.serverTolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

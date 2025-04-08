@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package script_transfer;
+
+option go_package = ".;transfer";
+
+// 定义服务
+service ScriptTransfer {
+  rpc TransferScript(TransferRequest) returns (TransferResponse) {}
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse) {}
+  rpc GetResource(GetResourceRequest) returns(GetResourceResponse) {}
+}
+
+// 定义卡类型
+enum CardType {
+  UNIDENTIFIED = 0;
+  V100 = 1;
+  A100_40 = 2;
+  A100_80 = 3;
+  XPU = 4;
+  IX = 5;
+  MX = 6;
+  MT = 7;
+}
+
+message GetResourceRequest {
+  repeated string ip_list = 1;
+}
+
+message GetResourceResponse {
+  bool success = 1;
+  string message = 2;
+  NodeResource output = 3;
+}
+
+message NodeResource {
+  map<string, CardType> node = 1;
+}
+
+message TransferRequest {
+  string file_name = 1;
+  bytes file_data = 2;
+}
+
+message TransferResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ExecuteRequest {
+  string job_id = 1;
+  map<string, string> process_nodes = 2;
+  map<string, string> base_node = 3;
+  string script_name = 4;
+  map<string, string> params = 5;
+  string cluster_name = 6;
+}
+
+enum CaseStatus {
+  // 健康
+  OK = 0;
+  // 故障
+  CRITICAL = 1;
+  // 不健康
+  UNHEALTHY = 2;
+  // 未知
+  UNKNOWN = 3;
+  // 超时
+  TIMEOUT = 4;
+}
+
+message CheckResult {
+  map<string, CaseStatus> case_result = 1;
+  map<string, string> logs_result = 2;
+}
+
+message ExecuteResponse {
+  bool success = 1;
+  string message = 2;
+  CheckResult output = 3;
+}

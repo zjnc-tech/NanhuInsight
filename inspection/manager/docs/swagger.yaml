@@ -1,0 +1,951 @@
+definitions:
+  api.CommonResponse:
+    properties:
+      code:
+        type: integer
+      data: {}
+      failed:
+        type: boolean
+      message:
+        type: string
+      requestId: {}
+      success:
+        type: boolean
+    type: object
+  controllers.DownloadRequest:
+    properties:
+      caseName:
+        type: string
+      jobId:
+        type: string
+    type: object
+  controllers.SetConfigRequest:
+    properties:
+      params:
+        additionalProperties: true
+        type: object
+      scriptName:
+        type: string
+      templateName:
+        type: string
+    type: object
+  job.CreateJobRequest:
+    properties:
+      baseIP:
+        type: string
+      ipList:
+        items:
+          type: string
+        type: array
+      isCron:
+        type: boolean
+      jobName:
+        type: string
+      mode:
+        type: string
+      resource:
+        type: string
+      template:
+        type: string
+    type: object
+  models.ParamResponse:
+    properties:
+      defaultValue:
+        type: string
+      isRequired:
+        type: boolean
+      paramName:
+        type: string
+      paramType:
+        type: string
+    type: object
+  templates.CreateRequest:
+    properties:
+      IPList:
+        items:
+          type: string
+        type: array
+      baseIP:
+        type: string
+      dayOfMonth:
+        type: string
+      dayOfWeek:
+        type: string
+      description:
+        type: string
+      frequency:
+        type: string
+      hour:
+        type: string
+      jobName:
+        type: string
+      minute:
+        type: string
+      mode:
+        type: string
+      needCron:
+        type: boolean
+      resource:
+        type: string
+      scriptList:
+        items:
+          $ref: '#/definitions/templates.ScriptParam'
+        type: array
+      template:
+        type: string
+    type: object
+  templates.ScriptParam:
+    properties:
+      params:
+        additionalProperties: true
+        description: 参数键值对
+        type: object
+      scriptName:
+        description: 脚本名称
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /inspection/api/v1/create_job:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的作业任务，需提供作业详情以及相关请求头信息
+      parameters:
+      - description: 请求者的用户名，需进行 URL 编码
+        in: header
+        name: x-username
+        required: true
+        type: string
+      - description: 作业执行的集群名称
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 包含作业详细信息的 JSON 数据
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/job.CreateJobRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功响应，返回创建的作业 ID
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 参数无效或缺少必要字段
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 创建作业任务
+      tags:
+      - 作业管理
+  /inspection/api/v1/create_template:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的模板，需提供模板详细信息以及相关请求头信息
+      parameters:
+      - description: 请求者的用户名，需进行 URL 编码
+        in: header
+        name: x-username
+        required: true
+        type: string
+      - description: 模板创建所在的集群名称
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 包含模板详细信息的 JSON 数据
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/templates.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回创建模板的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，缺少必要参数或参数无效
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 创建模板
+      tags:
+      - 模板管理
+  /inspection/api/v1/delete_template:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定集群中的模板
+      parameters:
+      - description: 模板所在集群的名称
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 要删除的模板名称
+        in: query
+        name: template
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回模板删除的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，缺少必要参数或参数无效
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 删除模板
+      tags:
+      - 模板管理
+  /inspection/api/v1/download_log:
+    post:
+      consumes:
+      - application/json
+      description: 下载指定作业中的检查结果的日志文件
+      parameters:
+      - description: 包含 jobId 和 caseName 的 JSON 对象
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.DownloadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 指定测试用例的日志文件
+          schema:
+            type: file
+        "400":
+          description: 请求错误，缺少或无效的参数
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "404":
+          description: 未找到日志文件
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 下载测试用例日志
+      tags:
+      - 检查结果
+  /inspection/api/v1/get_all_cases:
+    get:
+      consumes:
+      - application/json
+      description: 根据指定的模式检索脚本列表
+      parameters:
+      - description: 集群名称，指定脚本所在的集群
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 过滤检查项的模式，根据指定的模式筛选
+        in: query
+        name: mode
+        required: true
+        type: string
+      - description: 资源名称，根据指定的资源筛选检查项
+        in: query
+        name: resource
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回包含脚本列表的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，例如缺少必要参数或参数无效
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取脚本
+      tags:
+      - 脚本管理
+  /inspection/api/v1/get_all_templates:
+    get:
+      consumes:
+      - application/json
+      description: 根据集群名称、模式和资源名称查询模板列表
+      parameters:
+      - description: 集群名称，用于过滤模板（必填项）
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 模式，用于过滤模板（必填项）
+        in: query
+        name: mode
+        required: true
+        type: string
+      - description: 资源名称，用于过滤模板（可选项）
+        in: query
+        name: resource
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回模板名称列表的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，缺少必要参数或参数无效
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 根据模式获取模板
+      tags:
+      - 模板管理
+  /inspection/api/v1/get_nodes_from_cluster:
+    get:
+      consumes:
+      - application/json
+      description: 根据集群名称和模式，获取节点（IP 地址）列表，并根据资源名返回相关节点信息
+      parameters:
+      - description: 集群名称，用于指定要查询节点的集群
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 过滤模式，用于根据特定条件筛选节点
+        in: query
+        name: mode
+        required: true
+        type: string
+      - description: 资源名称，用于指定要查询的节点
+        in: query
+        name: resource
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回包含节点 IP 地址列表的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，例如缺少必要参数（如集群名称、模式或资源）
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取集群节点
+      tags:
+      - 节点管理
+  /inspection/api/v1/get_template_detail:
+    get:
+      consumes:
+      - application/json
+      description: 根据集群名称和模板名称查询模板的详细信息
+      parameters:
+      - description: 集群名称，用于过滤模板（必填项）
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 模板名称（必填项）
+        in: query
+        name: template
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回模板详情的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，缺少必要参数或参数无效
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取模板详情
+      tags:
+      - 模板管理
+  /inspection/api/v1/get_template_info:
+    get:
+      consumes:
+      - application/json
+      description: 根据查询条件、分页参数和排序选项返回模板记录
+      parameters:
+      - description: 分页页码，默认值为 1
+        in: query
+        name: pageID
+        type: integer
+      - description: 每页记录数，默认值为 10
+        in: query
+        name: pageSize
+        type: integer
+      - description: 根据集群名称过滤模板记录
+        in: header
+        name: x-cluster
+        type: string
+      - description: 根据模式过滤
+        in: query
+        name: mode
+        type: string
+      - description: 根据定时任务状态过滤
+        in: query
+        name: cron
+        type: string
+      - description: 排序字段，默认值为 'create_time'
+        in: query
+        name: sortBy
+        type: string
+      - description: 排序顺序，可选值为 'asc' 或 'desc'，默认值为 'desc'
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回模板记录列表的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取所有模板
+      tags:
+      - 模板管理
+  /inspection/api/v1/job/detail:
+    get:
+      consumes:
+      - application/json
+      description: 根据作业 ID 获取作业的详细信息
+      parameters:
+      - description: 集群名称
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 需要获取详情的作业 ID
+        in: query
+        name: jobID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回作业的详细信息
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: x-cluster 或 jobID 为必填项
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 获取作业详情失败
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取作业详情
+      tags:
+      - 作业管理
+  /inspection/api/v1/job/retry:
+    post:
+      consumes:
+      - application/json
+      description: 根据作业 ID 重试一个作业，从数据库中获取作业详情，并使用相同的参数创建新作业
+      parameters:
+      - description: 发起请求的用户名（需进行 URL 编码）
+        in: header
+        name: x-username
+        required: true
+        type: string
+      - description: 与作业关联的集群名称
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 包含需要重试的作业 ID 的 JSON 对象
+        in: body
+        name: jobId
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 重试成功的响应，包含作业详情
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: x-username 和 x-cluster 为必填项
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 获取作业 ID 失败
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 重试作业
+      tags:
+      - 作业管理
+  /inspection/api/v1/modify_template:
+    patch:
+      consumes:
+      - application/json
+      description: 修改模板的基本信息或定时任务配置
+      parameters:
+      - description: 请求者的用户名，需进行 URL 编码
+        in: header
+        name: x-username
+        required: true
+        type: string
+      - description: 模板所在集群的名称
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 包含模板修改信息的 JSON 数据
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/templates.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回模板修改的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，缺少必要参数或参数无效
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 修改模板
+      tags:
+      - 模板管理
+  /inspection/api/v1/node/download_excel:
+    get:
+      consumes:
+      - application/json
+      description: 下载节点表格模板
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 成功节点 Excel 文件
+          schema:
+            type: string
+        "400":
+          description: 请求错误，例如文件不存在
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误，例如文件路径读取失败
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 下载 Excel 模板文件
+      tags:
+      - 节点管理
+  /inspection/api/v1/node/resource:
+    get:
+      consumes:
+      - application/json
+      description: 根据集群名称获取集群资源列表
+      parameters:
+      - description: 集群名称，用于指定要查询节点的集群
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回包含节点 IP 地址列表的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，例如缺少必要参数（如集群名称或模式）或参数无效
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取集群资源
+      tags:
+      - 节点管理
+  /inspection/api/v1/node/upload_excel:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传包含 IP 地址列表的 Excel 文件，与指定集群的节点进行比较，并返回匹配和未匹配结果。
+      parameters:
+      - description: 集群名称，用于指定要比较的集群
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 上传的 Excel 文件（支持 .xlsx 和 .xls 格式）
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 过滤模式，用于指定例行还是深度检查
+        in: query
+        name: mode
+        required: true
+        type: string
+      - description: 资源名称，用于指定要比较的资源
+        in: query
+        name: resource
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回匹配的 IP 列表和匹配统计信息
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，例如缺少集群名称、文件参数或资源名称
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误，例如文件解析失败或处理逻辑错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 上传 Excel 文件
+      tags:
+      - 节点管理
+  /inspection/api/v1/nodes:
+    get:
+      consumes:
+      - application/json
+      description: 根据集群名称,卡资源类型和模式，获取key为节点类型，value为节点IP列表的map
+      parameters:
+      - description: 集群名称，用于指定要查询节点的集群
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 过滤模式，用于指定例行还是深度检查
+        in: query
+        name: mode
+        required: true
+        type: string
+      - description: 资源名称，用于指定要查询的节点
+        in: query
+        name: resource
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回包含节点 IP 地址列表的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，例如缺少必要参数（如集群名称、模式或资源）
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取集群节点
+      tags:
+      - 节点管理
+  /inspection/api/v1/result/detail:
+    get:
+      consumes:
+      - application/json
+      description: 根据作业 ID 和用例名称获取某个测试用例的详细信息
+      parameters:
+      - description: 用于标识测试的作业 ID
+        in: query
+        name: jobId
+        required: true
+        type: string
+      - description: 指定要查询的测试用例名称
+        in: query
+        name: caseName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回特定测试用例的详情
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，缺少 jobId 或 caseName 参数
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取特定测试用例详情
+      tags:
+      - 检查结果
+  /inspection/api/v1/result/summary:
+    get:
+      consumes:
+      - application/json
+      description: 根据作业 ID 获取测试结果的详细信息
+      parameters:
+      - description: 用于查询检查结果的作业ID
+        in: query
+        name: jobId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回检查结果详情
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，缺少 jobId 参数
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取测试结果详情
+      tags:
+      - 检查结果
+  /inspection/api/v1/script/get_config:
+    get:
+      consumes:
+      - application/json
+      description: 根据指定的多个脚本名称获取其配置信息
+      parameters:
+      - description: 脚本名称列表，多个脚本名称用逗号分隔，例如 'script1,script2'
+        in: query
+        name: scriptNames
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回包含脚本配置的响应，每个脚本名称对应一个参数列表
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/models.ParamResponse'
+              type: array
+            type: object
+        "400":
+          description: 请求错误，例如缺少必要参数或参数无效
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取脚本配置
+      tags:
+      - 脚本管理
+  /inspection/api/v1/script/set_config:
+    get:
+      consumes:
+      - application/json
+      description: 对指定模板中的指定检查项设置参数的名称与值
+      parameters:
+      - description: 指定集群名称
+        in: header
+        name: x-cluster
+        required: true
+        type: string
+      - description: 包含检查项参数名称和值的 JSON 数据
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.SetConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功设置参数
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，例如缺少必要参数或参数无效
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 设置检查项的参数值
+      tags:
+      - 脚本管理
+  /inspection/api/v1/test_case_detail:
+    get:
+      consumes:
+      - application/json
+      description: 根据作业 ID 和用例名称获取某个测试用例的详细信息
+      parameters:
+      - description: 用于标识测试的作业 ID
+        in: query
+        name: jobId
+        required: true
+        type: string
+      - description: 指定要查询的测试用例名称
+        in: query
+        name: caseName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回特定测试用例的详情
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，缺少 jobId 或 caseName 参数
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取特定测试用例详情
+      tags:
+      - 检查结果
+  /inspection/api/v1/test_result_details:
+    get:
+      consumes:
+      - application/json
+      description: 根据作业 ID 获取测试结果的详细信息
+      parameters:
+      - description: 用于查询检查结果的作业ID
+        in: query
+        name: jobId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回检查结果详情
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "400":
+          description: 请求错误，缺少 jobId 参数
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取测试结果详情
+      tags:
+      - 检查结果
+  /inspection/api/v1/test_result_info:
+    get:
+      consumes:
+      - application/json
+      description: 获取作业信息，根据查询条件和分页参数返回作业列表
+      parameters:
+      - description: 分页页码，默认值为 1
+        in: query
+        name: pageID
+        type: integer
+      - description: 每页记录数，默认值为 10
+        in: query
+        name: pageSize
+        type: integer
+      - description: 根据集群名称过滤作业记录
+        in: header
+        name: cluster_name
+        type: string
+      - description: 根据作业名称过滤
+        in: query
+        name: jobName
+        type: string
+      - description: 根据模式过滤
+        in: query
+        name: mode
+        type: string
+      - description: 根据作业状态过滤
+        in: query
+        name: status
+        type: string
+      - description: 根据模板名称过滤
+        in: query
+        name: templateName
+        type: string
+      - description: 根据完成时间范围过滤
+        in: query
+        name: finishedTimeRange
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回作业记录列表的响应
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/api.CommonResponse'
+      summary: 获取所有作业
+      tags:
+      - 作业管理
+swagger: "2.0"

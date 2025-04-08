@@ -1,0 +1,67 @@
+replicaCount: 1
+
+namespace: isg
+
+runMode: prod
+
+managerName: inspection-manager
+
+serverImage:
+  repository: cr.registry.res.cloud.zhejianglab.com/infrahi-installer/inspection_manager
+  pullPolicy: IfNotPresent
+  tag: 0.0.28
+
+managerHostPath: /opt/inspection-manager
+
+inspectionPath: /opt/inspection
+
+securityContext:
+  privileged:
+    true
+
+#serverNodeSelector:
+#  kubernetes.io/hostname: nh-dc-nm130-c04-4u-gpu-5
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+service:
+  create: true
+  host: isg.fed.zhejianglab.org
+  name: inspection
+  type: NodePort
+  port: 10086
+
+ingress:
+  enabled: true
+
+resources: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+
+tolerations: []
+
+affinity: {}
